@@ -8,8 +8,11 @@ import (
 	"time"
 )
 
-const dateFormat = "20060102"
-
+// NextDate вычисляет следующую дату на основе текущей даты, начальной даты и правила повторения
+// now - текущая дата и время
+// dstart - начальная дата в формате YYYYMMDD
+// repeat - правило повторения (например, "y" для года или "d N" для N дней)
+// Возвращает следующую дату в формате YYYYMMDD или ошибку, если правило недопустимо
 func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 	if repeat == "" {
 		return "", nil
@@ -25,9 +28,7 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 
 	switch {
 	case rule == "y":
-
 		start = start.AddDate(1, 0, 0)
-
 		for !start.After(now) {
 			start = start.AddDate(1, 0, 0)
 		}
@@ -50,7 +51,14 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 	return start.Format(dateFormat), nil
 }
 
+// nextDateHandler обрабатывает запросы к /api/nextdate, возвращая следующую дату
 func nextDateHandler(w http.ResponseWriter, r *http.Request) {
+	// Проверяем метод запроса
+	if r.Method != http.MethodGet {
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	nowStr := r.FormValue("now")
 	dateStr := r.FormValue("date")
 	repeat := r.FormValue("repeat")
@@ -78,5 +86,7 @@ func nextDateHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, next)
+	if _, err := fmt.Fprint(w, next); err != nil {
+		writeError(w, "failed to write response", http.StatusInternalServerError)
+	}
 }

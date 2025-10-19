@@ -2,32 +2,30 @@ package api
 
 import (
 	"encoding/json"
-	"final/pkg/db"
-	"fmt"
 	"net/http"
+
+	"final/pkg/db"
 )
 
+// tasksHandler обрабатывает GET /api/tasks, возвращая список всех задач
 func tasksHandler(w http.ResponseWriter, r *http.Request) {
+	// Проверяем метод запроса
 	if r.Method != http.MethodGet {
-		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	var tasks []Task
-	err := db.DB.Select(&tasks, `SELECT id, date, title, COALESCE(comment, '') AS comment, COALESCE(repeat, '') AS repeat FROM scheduler ORDER BY date`)
+	// Получаем список задач через функцию из пакета db
+	tasks, err := db.GetAllTasks(db.DB)
 	if err != nil {
-		fmt.Printf("GET tasks DB error: %v\n", err)
 		writeError(w, "failed to fetch tasks", http.StatusInternalServerError)
 		return
 	}
 
-	if tasks == nil {
-		tasks = []Task{}
-	}
-
-	fmt.Printf("GET tasks response: %+v\n", tasks)
-
+	// Устанавливаем заголовок и отправляем ответ
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string][]Task{"tasks": tasks})
+	if err := json.NewEncoder(w).Encode(map[string][]db.Task{"tasks": tasks}); err != nil {
+		writeError(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
